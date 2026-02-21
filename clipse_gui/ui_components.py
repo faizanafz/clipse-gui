@@ -108,6 +108,7 @@ def create_list_row_widget(
     compact_mode=False,
     hover_to_select=False,
     single_click_callback=None,
+    pin_click_callback=None,
 ):
     """Creates a Gtk.ListBoxRow widget for a clipboard item."""
     original_index = item_info["original_index"]
@@ -220,12 +221,25 @@ def create_list_row_widget(
 
     hbox.pack_start(content_box, False, True, 0)
 
-    # Use custom SVG pin icon
+    # Use custom SVG pin icon wrapped in EventBox to capture clicks independently
     pin_icon = create_pin_icon(row.item_pinned)
     pin_icon.set_tooltip_text("Pinned" if row.item_pinned else "Not Pinned")
     pin_icon.set_valign(Gtk.Align.START)  # Align to top
     pin_icon.set_margin_top(2)  # Small margin from the very top
-    hbox.pack_end(pin_icon, False, False, 0)
+
+    pin_event_box = Gtk.EventBox()
+    pin_event_box.set_visible_window(False)
+    pin_event_box.add(pin_icon)
+
+    if pin_click_callback:
+        def on_pin_button_press(widget, event):
+            if event.button == 1 and event.type == Gdk.EventType.BUTTON_PRESS:
+                pin_click_callback(row)
+                return True  # Stop propagation so row click doesn't also fire
+            return False
+        pin_event_box.connect("button-press-event", on_pin_button_press)
+
+    hbox.pack_end(pin_event_box, False, False, 0)
 
     vbox.pack_start(hbox, False, False, 0)
 

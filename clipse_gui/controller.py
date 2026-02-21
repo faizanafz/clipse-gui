@@ -73,6 +73,7 @@ class ClipboardHistoryController:
         self.main_box = ui_elements["main_box"]
         self.search_entry = ui_elements["search_entry"]
         self.pin_filter_button = ui_elements["pin_filter_button"]
+        self.clear_button = ui_elements["clear_button"]
         self.compact_mode_button = ui_elements["compact_mode_button"]
         self.scrolled_window = ui_elements["scrolled_window"]
         self.list_box = ui_elements["list_box"]
@@ -114,6 +115,7 @@ class ClipboardHistoryController:
         self.search_entry.connect("search-changed", self.on_search_changed)
         self.search_entry.connect("focus-out-event", self.on_search_focus_out)
         self.pin_filter_button.connect("toggled", self.on_pin_filter_toggled)
+        self.clear_button.connect("clicked", self.clear_non_pinned_items)
         self.compact_mode_button.connect("toggled", self.on_compact_mode_toggled)
         self.list_box.connect("row-activated", self.on_row_activated)
         self.list_box.connect("size-allocate", self.on_list_box_size_allocate)
@@ -260,6 +262,7 @@ class ClipboardHistoryController:
                     self.compact_mode,
                     self.hover_to_select,
                     self._on_row_single_click,
+                    self._on_pin_icon_click,
                 )
                 if row:
                     row.item_index = item_info["original_index"]
@@ -788,6 +791,55 @@ class ClipboardHistoryController:
             )
             log.info(f"Cleared {items_to_delete} items")
 
+    def clear_non_pinned_items(self, *_args):
+        """Clears all non-pinned items (always keeps pinned) with confirmation."""
+        if not self.items:
+            self.flash_status("No items to clear")
+            return
+
+        pinned_count = sum(1 for item in self.items if item.get("pinned", False))
+        non_pinned_count = len(self.items) - pinned_count
+
+        if non_pinned_count == 0:
+            self.flash_status("No non-pinned items to clear")
+            return
+
+        message = f"Delete all {non_pinned_count} non-pinned item{'s' if non_pinned_count != 1 else ''}?"
+        if pinned_count > 0:
+            message += f"\n\n({pinned_count} pinned item{'s' if pinned_count != 1 else ''} will be kept)"
+
+        dialog = Gtk.MessageDialog(
+            transient_for=self.window,
+            modal=True,
+            destroy_with_parent=True,
+            message_type=Gtk.MessageType.WARNING,
+            buttons=Gtk.ButtonsType.NONE,
+            text="Clear Clipboard History",
+        )
+        dialog.format_secondary_text(message)
+        dialog.add_button("Cancel", Gtk.ResponseType.CANCEL)
+        clear_button = dialog.add_button("Clear", Gtk.ResponseType.OK)
+        clear_button.get_style_context().add_class("destructive-action")
+
+        response = dialog.run()
+        dialog.destroy()
+
+        if response == Gtk.ResponseType.OK:
+            self.items = [item for item in self.items if item.get("pinned", False)]
+
+            if self.selection_mode:
+                self.selection_mode = False
+                self.selected_indices.clear()
+                self.main_box.get_style_context().remove_class("selection-mode")
+
+            self.schedule_save_history()
+            self.update_filtered_items()
+
+            self.flash_status(
+                f"Cleared {non_pinned_count} item{'s' if non_pinned_count != 1 else ''}"
+            )
+            log.info(f"Cleared {non_pinned_count} non-pinned items (kept pinned)")
+
     def _run_paste_command(self, cmd_args, input_data=None, is_binary=False):
         """Helper to run the paste command subprocess."""
         try:
@@ -1041,7 +1093,10 @@ class ClipboardHistoryController:
                         self._trigger_paste_simulation_and_quit,
                     )
                 else:
-                    GLib.timeout_add(100, self._quit_application)
+                    # Avoid "key bleed-through" (e.g. Enter showing up in the target app)
+                    # by hiding first and quitting after a short delay.
+                    self.window.hide()
+                    GLib.timeout_add(200, self._quit_application)
             else:
                 log.error("Copy operation failed.")
                 self.flash_status("Error: Copy operation failed.")
@@ -1492,13 +1547,16 @@ class ClipboardHistoryController:
 
         if keyval == Gdk.KEY_Return:
             if selected_row:
-                self.on_row_activated(self.list_box, shift and not ENTER_TO_PASTE)
+                # Shift+Enter: copy & paste (simulated). Enter: copy-only.
+                self.copy_selected_item_to_clipboard(
+                    with_paste_simulation=bool(shift and not ENTER_TO_PASTE)
+                )
             elif self.list_box.get_children():
                 first_row = self.list_box.get_row_at_index(0)
                 if first_row:
                     self.list_box.select_row(first_row)
                     first_row.grab_focus()
-                    self.on_row_activated(self.list_box)
+                    self.copy_selected_item_to_clipboard(with_paste_simulation=False)
             else:
                 self.search_entry.grab_focus()
             return True
@@ -1627,18 +1685,28 @@ class ClipboardHistoryController:
 
         return False
 
-    def on_row_activated(self, row, with_paste_simulation=False):
-        """Handles double-click or Enter on a list row."""
-        log.debug(f"Row activated: original_index={getattr(row, 'item_index', 'N/A')}")
-        self.copy_selected_item_to_clipboard(with_paste_simulation)
+    def on_row_activated(self, _listbox, row):
+        """Handles double-click activation on a list row (copy-only)."""
+        # GTK "row-activated" passes (listbox, row). Keep this copy-only to avoid
+        # accidental paste simulation / key bleed-through.
+        log.debug(
+            f"Row activated: original_index={getattr(row, 'item_index', 'N/A')}"
+        )
+        self.list_box.select_row(row)
+        self.copy_selected_item_to_clipboard(with_paste_simulation=False)
 
     def _on_row_single_click(self, row):
-        """Handles single-click on a list row - copies and pastes."""
+        """Handles single-click on a list row - copies and closes."""
         log.debug(f"Row single-clicked: original_index={getattr(row, 'item_index', 'N/A')}")
         # Select the row first
         self.list_box.select_row(row)
-        # Trigger copy with paste simulation
-        self.copy_selected_item_to_clipboard(with_paste_simulation=True)
+        self.copy_selected_item_to_clipboard(with_paste_simulation=False)
+
+    def _on_pin_icon_click(self, row):
+        """Handles click on the pin icon - toggles pin without pasting."""
+        log.debug(f"Pin icon clicked: original_index={getattr(row, 'item_index', 'N/A')}")
+        self.list_box.select_row(row)
+        self.toggle_pin_selected()
 
     def on_search_changed(self, entry):
         """Handles changes in the search entry, debounced."""

@@ -46,6 +46,11 @@ def build_main_window_content() -> dict:
     if not COMPACT_MODE:
         header_box.pack_start(pin_filter_button, False, False, 0)
 
+    clear_button = Gtk.Button(label="Clear")
+    clear_button.set_tooltip_text("Clear clipboard history (keeps pinned items)")
+    clear_button.get_style_context().add_class("destructive-action")
+    header_box.pack_end(clear_button, False, False, 0)
+
     compact_mode_button = Gtk.ToggleButton(label="Compact")
     # header_box.pack_start(compact_mode_button, False, False, 0)
     main_box.pack_start(header_box, False, False, 1 if COMPACT_MODE else 3)
@@ -92,6 +97,7 @@ def build_main_window_content() -> dict:
         "header_box": header_box,
         "search_entry": search_entry,
         "pin_filter_button": pin_filter_button,
+        "clear_button": clear_button,
         "compact_mode_button": compact_mode_button,
         "scrolled_window": scrolled_window,
         "list_box": list_box,

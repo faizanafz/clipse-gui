@@ -40,7 +40,7 @@ def create_pin_icon(is_pinned, angle=25):
     """Creates a pin icon from SVG data with color based on pinned state."""
     try:
         # Replace currentColor with actual color
-        color = "#ffcc00" if is_pinned else "rgba(255,255,255,0.25)"
+        color = "#ffcc00" if is_pinned else "#6b7280"
         svg_data = PIN_SVG_BASE.replace("currentColor", color).replace(
             "{angle}", str(angle)
         )

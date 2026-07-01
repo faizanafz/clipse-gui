@@ -138,8 +138,12 @@ APP_CSS = """
     margin-top: 1px;
     margin-bottom: 1px;
     border-left: 3px solid transparent;
+    color: @theme_fg_color;
     transition: background-color 0.2s ease,
                 border-left-color 0.2s ease;
+}
+.list-row label {
+    color: @theme_fg_color;
 }
 .list-row:hover {
     background-color: alpha(#4a90e2, 0.07);
@@ -148,6 +152,10 @@ APP_CSS = """
 .list-row:selected {
     background-color: alpha(#4a90e2, 0.13);
     border-left-color: #4a90e2;
+    color: @theme_fg_color;
+}
+.list-row:selected label {
+    color: @theme_fg_color;
 }
 
 /* Visual mode selection */
@@ -162,6 +170,10 @@ APP_CSS = """
 .list-row.selected-row {
     background-color: alpha(#9b59b6, 0.15);
     border-left-color: #9b59b6;
+    color: @theme_fg_color;
+}
+.list-row.selected-row label {
+    color: @theme_fg_color;
 }
 .list-row.selected-row:hover {
     background-color: alpha(#9b59b6, 0.2);
@@ -184,15 +196,19 @@ APP_CSS = """
 }
 .timestamp {
     font-size: 82%;
-    color: alpha(#ffffff, 0.35);
+    color: alpha(@theme_fg_color, 0.62);
     font-style: italic;
     margin-top: 2px;
 }
+.list-row:selected .timestamp,
+.list-row.selected-row .timestamp {
+    color: alpha(@theme_fg_color, 0.78);
+}
 .status-label {
-    border-top: 1px solid alpha(#ffffff, 0.07);
+    border-top: 1px solid alpha(@theme_fg_color, 0.16);
     padding-top: 5px;
     margin-top: 5px;
-    color: alpha(#ffffff, 0.4);
+    color: alpha(@theme_fg_color, 0.64);
     font-style: italic;
     font-size: 90%;
 }
@@ -203,23 +219,23 @@ textview {
     font-family: Monospace;
     font-weight: bold;
     font-size: 88%;
-    background-color: alpha(#ffffff, 0.07);
-    color: alpha(#ffffff, 0.75);
+    background-color: alpha(@theme_fg_color, 0.07);
+    color: alpha(@theme_fg_color, 0.86);
     padding: 2px 6px;
     border-radius: 4px;
-    border: 1px solid alpha(#ffffff, 0.12);
+    border: 1px solid alpha(@theme_fg_color, 0.18);
 }
 
 /* Help window section styling */
 frame > box {
-    background-color: alpha(#ffffff, 0.02);
+    background-color: alpha(@theme_fg_color, 0.03);
     border-radius: 6px;
     padding: 10px;
-    border: 1px solid alpha(#ffffff, 0.05);
+    border: 1px solid alpha(@theme_fg_color, 0.12);
 }
 
 frame > box > label {
-    color: alpha(#ffffff, 0.85);
+    color: alpha(@theme_fg_color, 0.9);
 }
 
 /* Pin icon styling */
@@ -234,25 +250,25 @@ frame > box > label {
 }
 
 .pin-icon.unpinned {
-    color: alpha(#ffffff, 0.25);
+    color: alpha(@theme_fg_color, 0.5);
 }
 
 /* Settings window styling */
 .settings-section {
-    border: 1px solid alpha(#ffffff, 0.1);
+    border: 1px solid alpha(@theme_fg_color, 0.15);
     border-radius: 6px;
     padding: 10px;
     margin: 5px;
 }
 
 .settings-section > label {
-    color: alpha(#ffffff, 0.9);
+    color: alpha(@theme_fg_color, 0.9);
     font-weight: bold;
     margin-bottom: 5px;
 }
 
 .settings-section frame {
-    background-color: alpha(#ffffff, 0.02);
+    background-color: alpha(@theme_fg_color, 0.03);
 }
 """
 log.debug(f"Using configuration directory: {CONFIG_DIR}")
